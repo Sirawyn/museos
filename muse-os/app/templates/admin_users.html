@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% block title %}Logins{% endblock %}
+{% block content %}
+<h1>Admin</h1>{% include "_adminnav.html" %}
+{% if error %}<p class="alert">{{ error }}</p>{% endif %}
+<section class="card">
+  <h2>Add a login</h2>
+  <p class="muted small">Every host, promoter, social rep and scout gets their own login, linked to their row on the Team tab. That link is what decides whose guests, bookings and pay they see. You'll get a personal login link to text them. They open it, choose their own password, and land on their own home page. You never see or send a password.</p>
+  <form method="post" action="/admin/users" class="fields">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label class="field"><span>Username</span><input name="username" autocapitalize="none" autocorrect="off" required placeholder="e.g. mia"></label>
+    <label class="field"><span>Role</span><select name="role" required>
+      {% for k, label in ROLES.items() %}<option value="{{ k }}" {{ 'selected' if k == 'host' }}>{{ label }}</option>{% endfor %}</select></label>
+    <label class="field"><span>Team member</span><select name="team_name"><option value="">(none, admins only)</option>
+      {% for t in team %}<option value="{{ t.name }}">{{ t.name }}{% if t.role %} · {{ t.role }}{% endif %}</option>{% endfor %}</select></label>
+    <div class="form-actions"><button class="btn primary">Create login and get link</button></div>
+  </form>
+  {% if unlinked %}<p class="small muted">Team members without a login: {{ unlinked | map(attribute='name') | join(', ') }}</p>{% endif %}
+</section>
+<section class="card">
+  <h2>Logins</h2>
+  <table class="plain resp">
+    <thead><tr><th>User</th><th>Role and team member</th><th>Last login</th><th></th></tr></thead>
+    <tbody>
+    {% for u in users %}
+    <tr class="{{ '' if u.active else 'muted' }}">
+      <td data-label="User"><b>{{ u.username }}</b>{% if not u.active %} <span class="tag">off</span>{% elif u.invite_expires and u.must_change_password %} <span class="tag">link sent, not set up yet</span>{% elif u.must_change_password %} <span class="tag">needs a new link</span>{% endif %}</td>
+      <td data-label="Role">
+        <form method="post" action="/admin/users/{{ u.id }}" class="inline-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="save">
+          <select name="role" aria-label="Role">{% for k, label in ROLES.items() %}<option value="{{ k }}" {{ 'selected' if k == u.role }}>{{ label }}</option>{% endfor %}</select>
+          <select name="team_name" aria-label="Team member"><option value="">(none)</option>{% for t in team %}<option {{ 'selected' if (u.team_name or '')|lower == t.name|lower }}>{{ t.name }}</option>{% endfor %}
+            {% if u.team_name and u.team_name|lower not in (team | map(attribute='name') | map('lower') | list) %}<option selected>{{ u.team_name }}</option>{% endif %}</select>
+          <button class="btn small">Save</button>
+        </form>
+      </td>
+      <td data-label="Last login" class="small">{{ (u.last_login_at or '')[:16] | replace('T', ' ') or 'never' }} UTC</td>
+      <td data-label="">
+        <form method="post" action="/admin/users/{{ u.id }}" class="inline-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="btn small ghost" name="action" value="reset">{{ 'Send new link' if u.must_change_password else 'Reset password (new link)' }}</button>
+          {% if u.id != user.id %}<button class="btn small ghost danger-text" name="action" value="{{ 'deactivate' if u.active else 'activate' }}">{{ 'Turn off' if u.active else 'Turn on' }}</button>{% endif %}
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</section>
+<section class="card">
+  <h2>What each role sees</h2>
+  <table class="plain resp">
+    <thead><tr><th>Role</th><th>Can see</th></tr></thead>
+    <tbody>
+    <tr><td data-label="Role">Admin</td><td data-label="Can see">Everything, including revenue, venue pay terms, payouts and the Ledger. Manages logins.</td></tr>
+    <tr><td data-label="Role">Host, Promoter</td><td data-label="Can see">Tonight's routing and check-in, plus Leads, Bookings and Guests that are theirs (they're the assigned host, or the host on duty for that venue night). Venue door info. Their own pay. No revenue or venue pay terms.</td></tr>
+    <tr><td data-label="Role">Social media</td><td data-label="Can see">Content (add and edit posts), venue door info, the format scoreboard. No guest data.</td></tr>
+    <tr><td data-label="Role">Scout</td><td data-label="Can see">Only their own referrals and earnings.</td></tr>
+    </tbody>
+  </table>
+</section>
+{% endblock %}

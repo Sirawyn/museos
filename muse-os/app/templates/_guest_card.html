@@ -1,0 +1,45 @@
+<article class="guest st-{{ (b.status or '') | lower | replace(' ', '-') }}" id="b-{{ b.id }}" data-search="{{ b.ig_handle }} {{ b.guest_name }} {{ b.venue }}">
+  <div class="g-main">
+    <span class="av {{ b.ig_handle | av }}">{{ b.ig_handle | initial }}</span>
+    <div>
+    <div class="g-name">
+      <a href="/bookings/{{ b.id | urlencode }}">@{{ b.ig_handle }}</a>
+      {% if b.tier == 'No-show risk' %}<span class="tag risk">No-show risk</span>{% elif b.tier == 'Muse VIP' %}<span class="tag vip">VIP</span>{% endif %}
+    </div>
+    <div class="g-sub">{% if b.guest_name %}{{ b.guest_name }} · {% endif %}{{ b.venue }}{% if b.stops and b.stops > 1 or (b.stop and b.stop > 1) %} · stop {{ b.stop }}{% endif %}{% if b.host %} · {{ b.host }}{% endif %}</div>
+    <div class="g-count">{{ b.girls or 0 }} girls{% if b.guys %} + {{ b.guys }} {{ "guy" if b.guys == 1 else "guys" }}{% endif %}
+      {% if b.status == 'Arrived' %} · <b>{{ b.girls_arrived if b.girls_arrived is not none else b.girls }} in</b>{% endif %}
+      {% if b.notes %}<div class="small muted">{{ b.notes }}</div>{% endif %}
+    </div>
+    </div>
+  </div>
+  {% if can_write(user, 'bookings') %}
+  <div class="g-actions">
+    {% if b.status == 'Confirmed' %}
+    <form method="post" action="/bookings/{{ b.id | urlencode }}/checkin" class="checkin" data-ajax>
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="{{ request.url.path }}?{{ request.url.query }}"><input type="hidden" name="action" value="arrived">
+      <div class="stepper">
+        <button type="button" class="step" data-step="-1" aria-label="One less">−</button>
+        <input type="number" name="count" inputmode="numeric" min="0" max="200" value="{{ b.girls or 0 }}" aria-label="Girls who got in">
+        <button type="button" class="step" data-step="1" aria-label="One more">+</button>
+      </div>
+      <button class="btn go">Arrived</button>
+    </form>
+    <form method="post" action="/bookings/{{ b.id | urlencode }}/checkin" data-ajax>
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="{{ request.url.path }}?{{ request.url.query }}"><input type="hidden" name="action" value="no_show">
+      <button class="btn danger-text">No-show</button>
+    </form>
+    {% elif b.status in ('Arrived', 'No-show') %}
+    <span class="pill s-{{ b.status | lower }}">{{ b.status }}</span>
+    <form method="post" action="/bookings/{{ b.id | urlencode }}/checkin" data-ajax>
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="{{ request.url.path }}?{{ request.url.query }}"><input type="hidden" name="action" value="undo">
+      <button class="btn ghost small">Undo</button>
+    </form>
+    {% else %}
+    <span class="pill s-{{ (b.status or '') | lower }}">{{ b.status }}</span>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="g-actions"><span class="pill s-{{ (b.status or '') | lower | replace(' ', '-') }}">{{ b.status }}</span></div>
+  {% endif %}
+</article>

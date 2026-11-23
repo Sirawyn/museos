@@ -1,0 +1,85 @@
+{% extends "base.html" %}{% block title %}Home{% endblock %}
+{% block content %}
+<h1>Hi{% if me %} {{ me.name }}{% endif %}</h1>
+{% if not me %}
+<p class="alert">Your login isn't linked to a Team member yet, so there's nothing to show. Ask an admin to link it.</p>
+{% else %}
+
+{% if user.role in ('host', 'promoter') %}
+<a class="btn primary full big" href="/tonight">Open Tonight's guest list</a>
+<div class="kpis">
+  <div class="kpi"><b>{{ stats.girls_arrived }}</b><span>Girls arrived (all time)</span></div>
+  <div class="kpi"><b>{{ stats.show_rate | pct }}</b><span>Show rate</span></div>
+  <div class="kpi"><b>{{ stats.leads_handled }}</b><span>Leads handled</span></div>
+  <div class="kpi"><b>{{ stats.nights_worked }}</b><span>Nights worked</span></div>
+</div>
+<section class="card">
+  <h2>Your upcoming nights</h2>
+  <table class="plain">
+    {% for n in my_nights %}<tr><td><a href="/tonight?night={{ n.night }}">{{ n.night | nice_date }}</a></td><td>{{ n.venue }}</td><td class="num">{{ n.girls_confirmed }} girls</td></tr>
+    {% else %}<tr><td class="muted">You're not on the lineup yet. An admin sets it on the Nights tab.</td></tr>{% endfor %}
+  </table>
+</section>
+{% endif %}
+
+{% if user.role == 'scout' %}
+<div class="kpis">
+  <div class="kpi"><b>{{ week_girls }}</b><span>Your girls who got in this week</span></div>
+  <div class="kpi"><b>{{ stats.referred }}</b><span>All time</span></div>
+  <div class="kpi"><b>{{ stats.earned | money or "$0" }}</b><span>Earned</span></div>
+  <div class="kpi"><b>{{ stats.balance | money or "$0" }}</b><span>Still to be paid</span></div>
+</div>
+<p class="muted">You earn {{ (me.pay_rate or 5) | money }} for every girl you send who gets in for the first time, at a venue that pays per girl. Returning girls, flat-rate venues and no-shows don't count. Tell your friends to say your name when they DM Muse.</p>
+<section class="card">
+  <h2>Your referrals</h2>
+  <table class="plain resp">
+    <thead><tr><th>Night</th><th>Venue</th><th>Guest</th><th>Status</th><th class="num">Counted</th></tr></thead>
+    <tbody>
+    {% for r in refs %}
+    <tr><td data-label="Night">{{ r.night | nice_date }}</td><td data-label="Venue">{{ r.venue }}</td><td data-label="Guest">@{{ r.handle }}</td>
+      <td data-label="Status"><span class="pill s-{{ (r.status or '') | lower | replace(' ', '-') }}">{{ r.status }}</span></td>
+      <td data-label="Counted" class="num">{% if r.eligible %}{{ r.counted }}{% else %}<span class="muted small">{{ r.why }}</span>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">No referrals yet.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+{% if user.role == 'social' %}
+<a class="btn primary full big" href="/content/new">Log a new post</a>
+<section class="card">
+  <h2>Format scoreboard</h2>
+  <table class="plain">
+    <tr><th>Format</th><th class="num">Posts</th><th class="num">DMs/post</th></tr>
+    {% for f in formats %}<tr><td>{{ f.format }}</td><td class="num">{{ f.posts }}</td><td class="num">{{ '%.1f' % f.dms_per_post }}</td></tr>
+    {% else %}<tr><td class="muted">No posts yet.</td></tr>{% endfor %}
+  </table>
+</section>
+<section class="card">
+  <h2>Your recent posts</h2>
+  <table class="plain">
+    {% for c in my_posts %}<tr><td><a href="/content/{{ c.post_id | urlencode }}">{{ c.post_id }}</a> <span class="muted small">{{ c.hook or '' }}</span></td><td class="num">{{ c.dms }} DMs</td></tr>
+    {% else %}<tr><td class="muted">Nothing logged yet.</td></tr>{% endfor %}
+  </table>
+</section>
+{% endif %}
+
+{% if user.role != 'scout' and stats %}
+<section class="card">
+  <h2>Your pay</h2>
+  <table class="plain">
+    <tr><td>Pay type</td><td class="num">{{ me.pay_type or 'Not set' }}{% if me.pay_rate %} · {{ me.pay_rate | money }}{% endif %}</td></tr>
+    <tr><td>Earned</td><td class="num">{{ stats.earned | money or "$0" }}</td></tr>
+    <tr><td>Paid</td><td class="num">{{ stats.paid | money or "$0" }}</td></tr>
+    <tr class="total"><td>Owed to you</td><td class="num">{{ stats.balance | money or "$0" }}</td></tr>
+  </table>
+</section>
+{% endif %}
+{% if payouts %}
+<section class="card">
+  <h2>Payments to you</h2>
+  <table class="plain">{% for p in payouts %}<tr><td>{{ p.date | nice_date }}</td><td>{{ p.status }}</td><td class="num">{{ p.amount | money }}</td></tr>{% endfor %}</table>
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

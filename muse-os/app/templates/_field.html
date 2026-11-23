@@ -1,0 +1,29 @@
+{% set v = r[f.name] if r[f.name] is not none else '' %}
+{% set ro = (not editable) or (host_locked and f.name == 'host') or (not new and f.name == e.pk and e.slug in ('guests','content')) %}
+<label class="field {{ 'wide' if f.type == 'longtext' else '' }} {{ 'check' if f.type == 'bool' else '' }}">
+  {% if f.type != 'bool' %}<span>{{ f.label }}{% if f.required %} *{% endif %}</span>{% endif %}
+  {% if f.type == 'longtext' %}
+    <textarea name="{{ f.name }}" rows="3" {{ 'readonly' if ro }}>{{ v }}</textarea>
+  {% elif f.type == 'bool' %}
+    <input type="hidden" name="{{ f.name }}" value="0">
+    <input type="checkbox" name="{{ f.name }}" value="1" {{ 'checked' if v in (1, '1', True, 'on') }} {{ 'disabled' if ro }}> <span>{{ f.label }}</span>
+  {% elif f.type in ('choice', 'venue', 'team', 'campaign') %}
+    {% if f.type == 'choice' %}{% set choices = f.choices %}
+    {% elif f.type == 'venue' %}{% set choices = opts.venues %}
+    {% elif f.type == 'campaign' %}{% set choices = opts.campaigns %}
+    {% else %}{% set choices = opts.team | selectattr('role', 'equalto', f.team_role) | map(attribute='name') | list if f.team_role else opts.team | map(attribute='name') | list %}{% endif %}
+    <select name="{{ f.name }}" {{ 'disabled' if ro }} {{ 'required' if f.required }}>
+      <option value=""></option>
+      {% for c in choices %}<option {{ 'selected' if c|lower == v|string|lower }}>{{ c }}</option>{% endfor %}
+      {% if v and v|string|lower not in (choices | map('lower') | list) %}<option selected>{{ v }}</option>{% endif %}
+    </select>
+    {% if ro and f.type != 'choice' %}<input type="hidden" name="{{ f.name }}" value="{{ v }}">{% endif %}
+  {% else %}
+    {% set t = {'int':'number','money':'number','pct':'number','date':'date','datetime':'datetime-local','time':'time','url':'url'}.get(f.type, 'text') %}
+    <input type="{{ t }}" name="{{ f.name }}" value="{{ v | replace(' ', 'T') if f.type == 'datetime' else v }}"
+      {% if f.type == 'int' %}inputmode="numeric" step="1" min="0"{% elif f.type in ('money', 'pct') %}inputmode="decimal" step="0.01"{% endif %}
+      {% if f.name == 'ig_handle' %}autocapitalize="none" autocorrect="off" placeholder="handle without @"{% endif %}
+      {{ 'readonly' if ro }} {{ 'required' if f.required }}>
+  {% endif %}
+  {% if f.help %}<small class="muted">{{ f.help }}</small>{% endif %}
+</label>

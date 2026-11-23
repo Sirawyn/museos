@@ -1,0 +1,88 @@
+{% extends "base.html" %}{% block title %}Weekly setup{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Weekly setup</h1>
+  <div class="weeknav">
+    <a class="btn small" href="?start={{ prev }}" aria-label="Previous week">‹</a>
+    <span class="small">{{ start | nice_date }} to {{ week_end | nice_date }}</span>
+    <a class="btn small" href="?start={{ next }}" aria-label="Next week">›</a>
+    {% set hidden_set = hidden %}{% include "_days.html" %}
+  </div>
+</div>
+<p class="muted small setup-intro">Fill this in on Sunday. The DM bot reads the lineup, the host on duty, each night's dress code and cover price, and the ticket links from here, so it routes girls and sends the right links all week.</p>
+{% if saved %}<p class="ok">Saved. The DM bot picks this up on its next message.</p>{% endif %}
+{% if kept %}<p class="alert">Kept because they already have bookings or a pay override: {{ kept }}. Cancel or move those bookings first.</p>{% endif %}
+{% if error %}<p class="alert">{{ error }}</p>{% endif %}
+{% if hidden %}<p class="note small">Hiding {% for i in hidden %}{{ WEEKDAY_NAMES[i] }}{{ ', ' if not loop.last }}{% endfor %}. Saving leaves those days exactly as they are.</p>{% endif %}
+{% if suggested %}<p class="note small">Days with nothing set yet are pre-ticked from each venue's usual nights, with last week's host, dress code and cover. Check them, then Save.</p>{% endif %}
+
+<form method="post" action="/setup">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="start" value="{{ start.isoformat() }}">
+
+  <h2>1. Lineup, host, dress code, cover and list closing time</h2>
+  <p class="muted small">Leave a dress code or closing time blank to use the venue's usual one (shown in grey).
+    Cover-only venues like NOFLEX ask for "Cover this night" instead of a ticket link: type the price every Sunday and the DM bot tells guests the amount.</p>
+  <div class="lineup">
+  {% for r in rows %}
+    <section class="lday">
+      <div class="lday-date"><b>{{ r.date.strftime('%a') }}</b> <span class="muted">{{ r.date.strftime('%b') }} {{ r.date.day }}</span></div>
+      <div class="lday-venues">
+      {% for c in r.cells %}{% set vid = venues[loop.index0].id %}
+        <div class="lv{{ ' on' if c.on }}{{ ' sug' if c.suggested }}">
+          <label class="lv-check"><input type="checkbox" name="n_{{ r.date.isoformat() }}_{{ vid }}" value="1" {{ 'checked' if c.on }}>
+            <span>{{ c.venue }}</span>{% if c.bookings %}<span class="count">{{ c.bookings }} booked</span>{% endif %}</label>
+          <select name="h_{{ r.date.isoformat() }}_{{ vid }}" aria-label="Host for {{ c.venue }} on {{ r.date | nice_date }}">
+            <option value="">No host yet</option>
+            {% for h in hosts %}<option {{ 'selected' if h|lower == c.host|lower }}>{{ h }}</option>{% endfor %}
+          </select>
+          <input name="dc_{{ r.date.isoformat() }}_{{ vid }}" value="{{ c.dress }}" maxlength="200"
+                 placeholder="{{ ('Dress code: ' ~ c.default_dress) if c.default_dress else 'Dress code' }}"
+                 aria-label="Dress code for {{ c.venue }} on {{ r.date | nice_date }}">
+          <select name="gp_{{ r.date.isoformat() }}_{{ vid }}" aria-label="Guys' entry for {{ c.venue }} on {{ r.date | nice_date }}">
+            <option value="">{{ ('Guys: ' ~ (c.default_guys | lower) ~ ' (usual)') if c.default_guys else 'Guys: usual (not set)' }}</option>
+            {% for g in guys_options %}<option value="{{ g }}" {{ 'selected' if g == c.guys }}>Guys: {{ g | lower }}</option>{% endfor %}
+          </select>
+          {% if c.is_cover %}<label class="lv-time lv-cover"><span>Cover this night</span>
+            <input name="cv_{{ r.date.isoformat() }}_{{ vid }}" value="{{ c.cover }}" maxlength="100" placeholder="e.g. $20"
+                   aria-label="Cover at the door for {{ c.venue }} on {{ r.date | nice_date }}"></label>
+          {% else %}<input name="cv_{{ r.date.isoformat() }}_{{ vid }}" value="{{ c.cover }}" maxlength="100" placeholder="Guys' cover, e.g. $40"
+                 aria-label="Guys' cover for {{ c.venue }} on {{ r.date | nice_date }}">{% endif %}
+          <label class="lv-time"><span>List closes</span>
+            <input type="time" name="lc_{{ r.date.isoformat() }}_{{ vid }}" value="{{ c.closes }}"
+                   aria-label="Guestlist closes for {{ c.venue }} on {{ r.date | nice_date }}">
+            {% if c.default_closes %}<small class="muted">usual {{ c.default_closes | nice_time }}</small>{% endif %}</label>
+          {% if c.is_cover %}<input type="hidden" name="tl_{{ r.date.isoformat() }}_{{ vid }}" value="{{ c.link }}">
+          {% else %}<input type="url" name="tl_{{ r.date.isoformat() }}_{{ vid }}" value="{{ c.link }}" inputmode="url"
+                 placeholder="Ticket link, only if different from below"
+                 aria-label="Guys' ticket link for {{ c.venue }} on {{ r.date | nice_date }}">{% endif %}
+        </div>
+      {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+  </div>
+
+  <h2>2. Guys' ticket links</h2>
+  <p class="muted small">One link per venue for the week. If a venue has a different link for one night (like Nebula's Friday and Saturday), put that night's link in its box above; it wins over this one.</p>
+  <div class="links">
+  {% for l in links %}{% if l.is_cover %}
+    <input type="hidden" name="link_{{ l.id }}" value="{{ l.link }}">
+    <div class="link-row"><label><span>{{ l.name }}</span></label>
+      <div class="small link-meta"><span class="muted">Cover at the door, no ticket link (set the cover above)</span></div></div>
+  {% else %}
+    <div class="link-row{{ ' stale' if l.stale and l.link }}">
+      <label><span>{{ l.name }}</span>
+        <input type="url" name="link_{{ l.id }}" value="{{ l.link }}" placeholder="https://" inputmode="url"></label>
+      <div class="small link-meta">
+        {% if not l.link %}<span class="muted">No link set</span>
+        {% elif l.stale %}<span class="warn-text">Not updated this week{% if l.updated %} (last {{ l.updated | nice_date }}){% endif %}</span>
+          <label class="inline"><input type="checkbox" name="same_{{ l.id }}" value="1"> Same link this week</label>
+        {% else %}<span class="muted">Updated {{ l.updated | nice_date }}</span>{% endif %}
+      </div>
+    </div>
+  {% endif %}{% endfor %}
+  </div>
+
+  <div class="form-actions sticky-save"><button class="btn primary">Save week</button></div>
+</form>
+{% endblock %}

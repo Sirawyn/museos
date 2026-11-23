@@ -1,0 +1,40 @@
+{% extends "base.html" %}{% block title %}Card Instagrams{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Card Instagrams <span class="muted count">{{ counts.all }}</span></h1>
+  <div class="actions">{% if not error %}<a class="btn ghost" href="/instagrams.csv">CSV</a>{% endif %}</div>
+</div>
+<p class="note">Instagrams collected by the Muse cards: girls who put their Instagram on a card, and friends who sent theirs from someone's card. Friends agreed to Muse DMing them about nights out, nothing else.</p>
+{% if error %}<p class="err">{{ error }}</p>{% else %}
+<form method="get" class="filters">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search Instagram or who referred her" aria-label="Search">
+  <select name="how" aria-label="How she came in" data-autosubmit>
+    <option value="">Everyone ({{ counts.all }})</option>
+    <option value="owner" {{ 'selected' if how == 'owner' }}>Card owners ({{ counts.owner }})</option>
+    <option value="friend" {{ 'selected' if how == 'friend' }}>Friend sign-ups ({{ counts.friend }})</option>
+  </select>
+  <label class="check small"><input type="checkbox" name="new" value="1" {{ 'checked' if new }} data-autosubmit><span>Not in Muse OS yet</span></label>
+  <button class="btn">Filter</button>
+  {% if qs %}<a class="btn ghost" href="/instagrams">Clear</a>{% endif %}
+</form>
+<div class="table-wrap">
+<table class="data resp">
+  <thead><tr><th>Instagram</th><th>How</th><th>Referred by</th><th>First seen</th><th>Last seen</th><th>In Muse OS</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+  <tr>
+    <td data-label="Instagram" class="first"><a class="rec" href="https://instagram.com/{{ r.instagram | urlencode }}" rel="noopener noreferrer" target="_blank">@{{ r.instagram }}</a></td>
+    <td data-label="How">{{ r.how }}</td>
+    <td data-label="Referred by">{{ r.referred_by | join(', ') }}</td>
+    <td data-label="First seen">{{ r.first_seen }}</td>
+    <td data-label="Last seen">{{ r.last_seen }}</td>
+    <td data-label="In Muse OS">{% if r.known == 'Guest' %}<a href="/guests/{{ r.instagram | urlencode }}">Guest</a>{% elif r.known %}{{ r.known }}{% else %}<span class="muted">No</span>{% endif %}</td>
+  </tr>
+  {% else %}
+  <tr><td colspan="6" class="empty">{{ 'No matches.' if qs else 'No Instagrams yet. They show up here after the first card taps.' }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

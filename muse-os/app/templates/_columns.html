@@ -1,0 +1,13 @@
+<details class="viewmenu">
+  <summary class="btn">Columns{% if cols_custom %} <span class="count">custom</span>{% endif %}</summary>
+  <form method="post" action="/prefs/columns/{{ e.slug }}" class="viewmenu-pop">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="{{ request.url.path }}?{{ request.url.query }}">
+    <div class="small muted">Show these columns (saved for you)</div>
+    <div class="colchecks">
+    {% for name, label, on, locked in col_choices %}
+      <label class="check"><input type="checkbox" name="col" value="{{ name }}" {{ 'checked' if on }} {{ 'disabled' if locked }}><span>{{ label }}</span></label>
+    {% endfor %}
+    </div>
+    <div class="actions"><button class="btn small primary">Save</button>{% if cols_custom %}<button class="btn small ghost" name="reset" value="1">Reset to default</button>{% endif %}</div>
+  </form>
+</details>

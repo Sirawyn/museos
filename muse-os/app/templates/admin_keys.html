@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% block title %}DM bot API{% endblock %}
+{% block content %}
+<h1>Admin</h1>{% include "_adminnav.html" %}
+{% if new_key %}
+<div class="card">
+  <h2>New API key</h2>
+  <p><code class="copy">{{ new_key }}</code></p>
+  <p class="muted small">Copy it now. It isn't stored and won't be shown again. Put it in the DM bot's settings as <code>MUSE_OS_API_KEY</code>.</p>
+</div>
+{% endif %}
+<section class="card">
+  <h2>API keys</h2>
+  <p class="muted small">The DM bot uses a key to write leads, guests and bookings here, and to read venues, scouts and check-ins. A key can't see or change logins, money or the Ledger.</p>
+  <form method="post" action="/admin/keys" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="name" value="DM bot" aria-label="Key name"><button class="btn primary">Create key</button>
+  </form>
+  <table class="plain">
+    {% for k in keys %}
+    <tr class="{{ 'muted' if k.revoked }}"><td>{{ k.name }} <code>{{ k.prefix }}…</code></td><td class="small">Last used: {{ (k.last_used_at or 'never')[:16] }}</td>
+      <td>{% if not k.revoked %}<form method="post" action="/admin/keys" data-confirm="Revoke this key? The bot will stop syncing until it gets a new one."><input type="hidden" name="csrf" value="{{ csrf }}"><button class="btn small ghost danger-text" name="revoke" value="{{ k.id }}">Revoke</button></form>{% else %}revoked{% endif %}</td></tr>
+    {% else %}<tr><td class="muted">No keys yet.</td></tr>{% endfor %}
+  </table>
+</section>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}{% block title %}Calendar{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>Content calendar</h1>
+  <div class="actions">
+    <a class="btn primary" href="/plan/new">+ Plan a post</a>
+    <a class="btn ghost" href="/social">Social hub</a>
+  </div>
+</div>
+<div class="head">
+  <div class="weeknav">
+    <a class="btn small" href="?month={{ prev }}{{ '&' ~ qs if qs }}" aria-label="Previous month">‹</a>
+    <b>{{ first.strftime('%B %Y') }}</b>
+    <a class="btn small" href="?month={{ next }}{{ '&' ~ qs if qs }}" aria-label="Next month">›</a>
+    <a class="btn small ghost" href="?month={{ this }}{{ '&' ~ qs if qs }}">Today</a>
+  </div>
+  <form method="get" class="inline-form">
+    <input type="hidden" name="month" value="{{ first.strftime('%Y-%m') }}">
+    <select name="owner" aria-label="Owner" data-autosubmit><option value="">Everyone</option>
+      {% for t in team %}<option {{ 'selected' if t == owner }}>{{ t }}</option>{% endfor %}</select>
+    <select name="campaign" aria-label="Campaign" data-autosubmit><option value="">All campaigns</option>
+      {% for c in campaigns %}<option {{ 'selected' if c == campaign }}>{{ c }}</option>{% endfor %}</select>
+    <noscript><button class="btn small">Filter</button></noscript>
+  </form>
+</div>
+{% if camps %}<p class="muted small">This month: {% for c in camps %}<a href="/campaigns/{{ c.id }}">{{ c.name }}</a> ({{ c.start_date | nice_date }} to {{ c.end_date | nice_date }}{% if c.status == 'Unconfirmed' %}, unconfirmed{% endif %}){{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+
+<div class="cal">
+  <div class="cal-head">{% for d in WEEKDAY_NAMES %}<span>{{ d }}</span>{% endfor %}</div>
+  {% for wk in weeks %}
+  <div class="cal-week">
+    {% for d in wk %}
+    {% set key = d.isoformat() %}{% set day = by_day.get(key) %}
+    <div class="cal-day {{ 'out' if d.month != first.month }} {{ 'today' if d == today }} {{ 'empty' if not day }}">
+      <div class="cal-date"><span>{{ d.strftime('%a %b %-d') }}</span><b>{{ d.day }}</b>
+        {% if can_write(user, 'plan') %}<a class="cal-add" href="/plan/new?date={{ key }}{{ '&campaign=' ~ (campaign | urlencode) if campaign }}" aria-label="Plan a post on {{ d | nice_date }}">+</a>{% endif %}</div>
+      {% if day %}
+        {% for m in day.marks %}<div class="cal-mark">{{ m }}</div>{% endfor %}
+        {% for s in day.shoots %}<a class="cal-item shoot" href="/shoots/{{ s.id }}">Shoot{% if s.venue %} · {{ s.venue }}{% endif %}{% if s.who %} · {{ s.who }}{% endif %}</a>{% endfor %}
+        {% for p in day.posts %}
+        <a class="cal-item st-{{ (p.status or '') | lower | replace(' ', '-') }}" href="/plan/{{ p.id | urlencode }}" title="{{ p.status }}{{ ' · ' ~ p.owner if p.owner }}">
+          <span class="fmt f-{{ (p.format or '') | lower | replace(' ', '-') }}">{{ p.format }}</span>
+          <span class="cal-title">{{ p.title }}</span>
+          <span class="cal-sub">{{ p.status }}{% if p.owner %} · {{ p.owner }}{% endif %}{% if p.approval and p.approval != 'Approved' %} · OK {{ p.approval | lower }}{% endif %}</span>
+        </a>
+        {% endfor %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+</div>
+<p class="muted small legend">
+  <span class="pill s-planned">Planned / filming / editing</span>
+  <span class="pill s-ready-for-review">Ready for review</span>
+  <span class="pill s-approved">Approved / scheduled</span>
+  <span class="pill s-posted">Posted</span>
+</p>
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "base.html" %}{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>Admin</h1>{% include "_adminnav.html" %}
+{% if saved %}<p class="ok">Saved.</p>{% endif %}
+<form method="post" action="/admin/settings" class="card form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <div class="fields">
+  {% for k, label in labels.items() %}
+  <label class="field"><span>{{ label }}</span><input name="{{ k }}" value="{{ settings[k] }}"></label>
+  {% endfor %}
+  </div>
+  <div class="form-actions"><button class="btn primary">Save</button></div>
+</form>
+{% endblock %}

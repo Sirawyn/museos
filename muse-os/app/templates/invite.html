@@ -1,0 +1,23 @@
+{% extends "base.html" %}{% block title %}Welcome{% endblock %}{% block mainclass %}center{% endblock %}
+{% block content %}
+{% if not invite %}
+<div class="card narrow login">
+  <div class="ws"><span class="logo">M</span><span>Muse OS</span></div>
+  <h2>This link has expired or was already used</h2>
+  <p class="muted">Login links work once and last 7 days. Ask your admin to send you a new one from Settings &gt; Logins.</p>
+  <a class="btn full" href="/login">Go to log in</a>
+</div>
+{% else %}
+<form method="post" class="card narrow login">
+  <div class="ws"><span class="logo">M</span><span>Muse OS</span></div>
+  <h2>Welcome{% if invite.team_name %}, {{ invite.team_name }}{% endif %}</h2>
+  <p class="muted small">{{ intro }}</p>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <label>Your username<input value="{{ invite.username }}" readonly autocomplete="username" name="username"></label>
+  <label>Choose a password<input name="new_password" type="password" autocomplete="new-password" minlength="10" required autofocus></label>
+  <label>Type it again<input name="confirm_password" type="password" autocomplete="new-password" minlength="10" required></label>
+  <p class="muted small">At least 10 characters. You'll use your username and this password to log in from now on.</p>
+  <button class="btn primary full">Set password and continue</button>
+</form>
+{% endif %}
+{% endblock %}
