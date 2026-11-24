@@ -1,0 +1,95 @@
+{% extends "base.html" %}{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="head"><h1>Dashboard</h1>{% include "_weeknav.html" %}</div>
+
+<div class="kpis">
+  <div class="kpi"><b>{{ dash.revenue | money or "$0" }}</b><span>Revenue this week</span></div>
+  <div class="kpi"><b>{{ dash.girls_arrived }}</b><span>Girls arrived of {{ dash.girls_confirmed }} confirmed</span></div>
+  <div class="kpi"><b>{{ dash.show_rate | pct }}</b><span>Show rate</span></div>
+  <div class="kpi {{ 'bad' if dash.median_reply > dash.reply_target else '' }}"><b>{{ '%g' % dash.median_reply }} min</b><span>Median DM reply (target {{ '%g' % dash.reply_target }})</span></div>
+</div>
+
+<div class="grid2">
+<section class="card">
+  <h2>Funnel this week</h2>
+  <table class="plain">
+    {% for label, n, conv in dash.funnel %}
+    <tr><td>{{ label }}</td><td class="num">{{ '{:,}'.format(n) }}</td><td class="num muted">{{ conv | pct if conv is not none else '' }}</td></tr>
+    {% endfor %}
+  </table>
+  <h3>DM reply speed</h3>
+  <table class="plain">
+    <tr><td>Answered within {{ '%g' % dash.reply_target }} min</td><td class="num">{{ dash.within_target | pct }}</td></tr>
+    <tr><td>DMs with no reply yet</td><td class="num">{{ dash.no_reply }}</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Venues this week</h2>
+  <table class="plain">
+    <tr><th>Venue</th><th class="num">Girls</th><th>Quota</th><th class="num">Earned</th></tr>
+    {% for v in dash.venues %}
+    <tr><td><a href="/venues?q={{ v.name | urlencode }}">{{ v.name }}</a></td><td class="num">{{ v.girls }}</td>
+      <td>{% if v.quota %}<meter min="0" max="1" low="0.5" high="0.99" optimum="1" value="{{ [v.quota_pct, 1] | min }}"></meter> <span class="muted small">{{ v.girls }}/{{ v.quota }}</span>{% else %}<span class="muted small">no quota</span>{% endif %}</td>
+      <td class="num">{{ v.revenue | money or "$0" }}</td></tr>
+    {% else %}<tr><td colspan="4" class="muted">No active venues yet.</td></tr>{% endfor %}
+  </table>
+  <p class="muted small">Revenue per arrived girl: {{ dash.rev_per_girl | money or "$0" }}</p>
+</section>
+
+<section class="card">
+  <h2>Money for {{ dash.month.strftime('%B %Y') }}</h2>
+  <table class="plain">
+    <tr><td>Revenue earned (door pay + commissions)</td><td class="num">{{ dash.month_revenue | money or "$0" }}</td></tr>
+    <tr><td>Cash received from venues</td><td class="num">{{ dash.cash_in | money or "$0" }}</td></tr>
+    <tr><td>Other income received</td><td class="num">{{ dash.other_income | money or "$0" }}</td></tr>
+    <tr><td>Team and scout payouts paid</td><td class="num">{{ dash.payouts | money or "$0" }}</td></tr>
+    <tr><td>Expenses paid</td><td class="num">{{ dash.expenses | money or "$0" }}</td></tr>
+    <tr class="total"><td>Net cash</td><td class="num">{{ dash.net_cash | money or "$0" }}</td></tr>
+    <tr><td>Owed to team, all time</td><td class="num">{{ dash.owed_team | money or "$0" }}</td></tr>
+    <tr><td>Owed by venues, all time</td><td class="num">{{ dash.owed_venues | money or "$0" }}</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Team this week</h2>
+  <table class="plain">
+    <tr><th>Name</th><th>Role</th><th class="num">Arrived</th><th class="num">Show</th><th class="num">Leads</th></tr>
+    {% for t in dash.team %}
+    <tr><td>{{ t.name }}</td><td class="muted">{{ t.role or '' }}</td><td class="num">{{ t.girls_arrived }}</td><td class="num">{{ t.show_rate | pct }}</td><td class="num">{{ t.leads }}</td></tr>
+    {% else %}<tr><td colspan="5" class="muted">Add your team on the Team tab.</td></tr>{% endfor %}
+  </table>
+  {% if dash.scouts %}
+  <h3>Scouts</h3>
+  <table class="plain">
+    {% for s in dash.scouts %}<tr><td>{{ s.name }}</td><td class="num">{{ s.girls }} girls referred</td></tr>{% endfor %}
+  </table>
+  {% endif %}
+</section>
+
+<section class="card">
+  <h2>Guest base, all time</h2>
+  <table class="plain">
+    <tr><td>Muse Girls (out at least once)</td><td class="num">{{ dash.muse_girls }}</td></tr>
+    <tr><td>Muse VIPs</td><td class="num">{{ dash.vips }}</td></tr>
+    <tr><td>Tagged no-show risk</td><td class="num">{{ dash.risk }}</td></tr>
+    <tr><td>No-show rate, all bookings</td><td class="num">{{ dash.noshow_rate_all | pct }}</td></tr>
+  </table>
+</section>
+
+<section class="card">
+  <h2>Content</h2>
+  <h3>Top posts by DMs</h3>
+  <table class="plain">
+    {% for c in dash.top_posts %}
+    <tr><td><a href="/content/{{ c.post_id | urlencode }}">{{ c.post_id }}</a> <span class="muted small">{{ c.format or '' }}</span></td><td class="num">{{ c.dms }} DMs</td><td class="num">{{ c.girls_out }} out</td></tr>
+    {% else %}<tr><td class="muted">No posts logged yet.</td></tr>{% endfor %}
+  </table>
+  <h3>Format scoreboard</h3>
+  <table class="plain">
+    <tr><th>Format</th><th class="num">Posts</th><th class="num">DMs/post</th></tr>
+    {% for f in dash.formats %}<tr><td>{{ f.format }}</td><td class="num">{{ f.posts }}</td><td class="num">{{ '%.1f' % f.dms_per_post }}</td></tr>{% endfor %}
+  </table>
+</section>
+</div>
+{% endblock %}

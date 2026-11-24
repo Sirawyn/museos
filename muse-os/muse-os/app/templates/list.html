@@ -1,0 +1,79 @@
+{% extends "base.html" %}{% block title %}{{ e.title }}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{{ e.title }} <span class="muted count">{{ total }}</span></h1>
+  <div class="actions">
+    {% if can_write(user, e.slug) %}<a class="btn primary" href="/{{ e.slug }}/new">+ New {{ e.singular }}</a>{% endif %}
+    {% include "_columns.html" %}
+    {% if is_admin(user) %}<a class="btn ghost" href="/export/{{ e.slug }}.csv">CSV</a>{% endif %}
+  </div>
+</div>
+<form method="get" class="filters">
+  <input type="search" name="q" value="{{ q }}" placeholder="Search {{ e.title | lower }}" aria-label="Search">
+  {% if status_choices %}
+  <select name="status" aria-label="Status" data-autosubmit><option value="">Any status</option>
+    {% for s in status_choices %}<option {{ 'selected' if s == status else '' }}>{{ s }}</option>{% endfor %}</select>
+  {% endif %}
+  {% if e.slug in ('leads', 'bookings', 'nights', 'ledger') %}
+  <select name="venue" aria-label="Venue" data-autosubmit><option value="">Any venue</option>
+    {% for v in opts.venues %}<option {{ 'selected' if v == venue else '' }}>{{ v }}</option>{% endfor %}</select>
+  {% endif %}
+  {% if dcol %}
+  <label class="inline small">From <input type="date" name="frm" value="{{ frm }}"></label>
+  <label class="inline small">To <input type="date" name="to" value="{{ to }}"></label>
+  {% endif %}
+  <button class="btn">Filter</button>
+  {% if qs %}<a class="btn ghost" href="/{{ e.slug }}">Clear</a>{% endif %}
+</form>
+
+{% if deleted %}<p class="ok">Deleted {{ deleted }} {{ e.singular }}{{ 's' if deleted != '1' }}.</p>{% endif %}
+{% if bulk %}
+<form method="post" action="/{{ e.slug }}/delete-selected" id="bulk" data-bulk data-singular="{{ e.singular }}"
+      data-confirm="Delete the selected {{ e.title | lower }}? This can't be undone.">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <input type="hidden" name="back" value="{{ request.url.path }}{{ '?' ~ qs if qs }}">
+  <div class="bulkbar">
+    <label class="check"><input type="checkbox" data-select-all aria-label="Select all on this page"><span>Select all on this page</span></label>
+    <span class="muted small" data-bulk-count>0 selected</span>
+    <button class="btn small danger-text" data-bulk-delete disabled>Delete selected</button>
+  </div>
+</form>
+{% endif %}
+<div class="table-wrap">
+<table class="data resp">
+  <thead><tr>
+    {% if bulk %}<th class="pick"><span class="sr">Select</span></th>{% endif %}
+    {% for f in fields %}<th class="{{ 'num' if f.type in ('int','money','pct') else '' }}">{{ f.label }}</th>{% endfor %}
+    {% for k, label, _ in computed %}<th class="num">{{ label }}</th>{% endfor %}
+  </tr></thead>
+  <tbody>
+  {% for r in rows %}
+  {% set rid = r[e.pk] %}
+  <tr data-href="/{{ e.slug }}/{{ rid | string | urlencode }}">
+    {% if bulk %}<td class="pick" data-label=""><input type="checkbox" name="ids" value="{{ rid }}" form="bulk" aria-label="Select {{ rid }}"></td>{% endif %}
+    {% for f in fields %}
+    <td data-label="{{ f.label }}" class="{{ 'num' if f.type in ('int','money','pct') else '' }}{{ ' first' if loop.first else '' }}">
+      {% if loop.first %}<a class="rec" href="/{{ e.slug }}/{{ rid | string | urlencode }}">{% if e.slug in ('guests', 'team') %}<span class="av {{ r[f.name] | av }}">{{ r[f.name] | initial }}</span>{% endif %}{{ (r[f.name] | fmt(f.type)) or '(blank)' }}</a>
+      {% elif f.name == 'status' %}<span class="pill s-{{ (r.status or '') | lower | replace(' ', '-') }}">{{ r.status or '' }}</span>
+      {% elif f.type == 'url' and r[f.name] %}<a href="{{ r[f.name] }}" rel="noopener noreferrer" target="_blank">link</a>
+      {% else %}{{ r[f.name] | fmt(f.type) }}{% endif %}
+    </td>
+    {% endfor %}
+    {% for k, label, _ in computed %}
+    <td data-label="{{ label }}" class="num">{% if k == 'tier' %}<span class="tag t-{{ (r[k] or '') | lower | replace(' ', '-') }}">{{ r[k] }}</span>{% else %}{{ r[k] | fmt(ctype(k)) }}{% endif %}</td>
+    {% endfor %}
+  </tr>
+  {% else %}
+  <tr><td colspan="{{ fields | length + computed | length + (1 if bulk else 0) }}" class="empty">Nothing here yet.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% if pages > 1 %}
+<div class="pager">
+  {% if page > 1 %}<a class="btn" href="?{{ qs }}{{ '&' if qs else '' }}page={{ page - 1 }}">‹ Newer</a>{% endif %}
+  <span class="muted">Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}<a class="btn" href="?{{ qs }}{{ '&' if qs else '' }}page={{ page + 1 }}">Older ›</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

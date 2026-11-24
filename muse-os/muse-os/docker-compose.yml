@@ -1,0 +1,43 @@
+# Muse OS behind the server's Traefik (Traefik handles HTTPS) + nightly backups.
+# 1. Point your domain's DNS at this server; copy .env.example to .env and fill in DOMAIN and the TRAEFIK_* names
+# 2. docker compose up -d --build
+# 3. docker compose exec app python -m app.cli create-admin <your-username>
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - muse-data:/data
+    expose:
+      - "8000"
+    networks: [traefik]
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=${TRAEFIK_NETWORK:-traefik}
+      - traefik.http.routers.muse-os.rule=Host(`${DOMAIN}`)
+      - traefik.http.routers.muse-os.entrypoints=${TRAEFIK_ENTRYPOINT:-websecure}
+      - traefik.http.routers.muse-os.tls=true
+      - traefik.http.routers.muse-os.tls.certresolver=${TRAEFIK_CERTRESOLVER:-letsencrypt}
+      - traefik.http.routers.muse-os.middlewares=muse-os-noindex
+      # the app is private: keep it out of search engines
+      - traefik.http.middlewares.muse-os-noindex.headers.customresponseheaders.X-Robots-Tag=noindex, nofollow
+      - traefik.http.services.muse-os.loadbalancer.server.port=8000
+
+  backup:
+    build: .
+    restart: unless-stopped
+    user: root
+    volumes:
+      - muse-data:/data
+      - ./backups:/backups
+    command: ["python", "-m", "app.cli", "backup-loop", "/backups", "30"]
+    network_mode: none
+
+networks:
+  traefik:
+    external: true
+    name: ${TRAEFIK_NETWORK:-traefik}
+
+volumes:
+  muse-data:

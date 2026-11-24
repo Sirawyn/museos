@@ -1,0 +1,61 @@
+{% extends "base.html" %}{% block title %}Tonight{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{% if night.isoformat() == today %}Tonight{% else %}{{ night | nice_date }}{% endif %}</h1>
+  <div class="weeknav">
+    <a class="btn small" href="?night={{ prev }}{% if venue %}&venue={{ venue | urlencode }}{% endif %}" aria-label="Previous night">‹</a>
+    <form method="get" class="inline"><input type="date" name="night" value="{{ night.isoformat() }}" data-autosubmit>{% if venue %}<input type="hidden" name="venue" value="{{ venue }}">{% endif %}</form>
+    <a class="btn small" href="?night={{ next }}{% if venue %}&venue={{ venue | urlencode }}{% endif %}" aria-label="Next night">›</a>
+    {% if night.isoformat() != today %}<a class="btn small ghost" href="/tonight">Tonight</a>{% endif %}
+  </div>
+</div>
+
+{% if venues_open %}
+<div class="venue-strip">
+  <a class="venue-chip {{ '' if venue else 'on' }}" href="?night={{ night.isoformat() }}">All <b>{{ rows | length }}</b></a>
+  {% for v in venues_open %}
+  <a class="venue-chip {{ 'on' if venue and venue|lower == v.venue|lower else '' }}" href="?night={{ night.isoformat() }}&venue={{ v.venue | urlencode }}">
+    {{ v.venue }} <b>{{ v.girls_arrived }}/{{ v.girls_confirmed }}</b>
+  </a>
+  {% endfor %}
+</div>
+<div class="venue-info">
+  {% for v in venues_open if not venue or venue|lower == v.venue|lower %}
+  <div class="card tight">
+    <div class="row-between"><strong>{{ v.venue }}</strong><span class="muted small">Host: {{ v.host or 'not set' }}</span></div>
+    <div class="small">
+      {% if v.arrive_by %}Arrive by {{ v.arrive_by | nice_time }} · {% endif %}{{ v.men_policy or 'Men policy not set' }}
+      {% if v.list_closes %} · List closes {{ v.list_closes | nice_time }}{% endif %}
+      {% if v.guys_policy == 'Free' %} · <b>Guys free</b>{% elif v.guys_policy %} · Guys: {{ v.guys_policy | lower }}{% endif %}
+      {% if v.cover %} · Guys' cover {{ v.cover }}{% endif %}
+      {% if v.pending %} · <b>{{ v.pending }} still to arrive</b>{% endif %}
+    </div>
+    {% if v.dress_code %}<div class="small muted">{{ v.dress_code }}</div>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="toolbar">
+  <input type="search" placeholder="Find a guest" data-filter="#guestlist .guest" aria-label="Find a guest">
+  {% if can_write(user, 'bookings') %}<a class="btn" href="/bookings/new?night={{ night.isoformat() }}{% if venue %}&venue={{ venue | urlencode }}{% endif %}">+ Walk-up</a>{% endif %}
+</div>
+
+<div id="guestlist">
+{% for b in rows %}
+  {% include "_guest_card.html" %}
+{% else %}
+  <p class="empty">No bookings for this night{% if venue %} at {{ venue }}{% endif %} yet.</p>
+{% endfor %}
+</div>
+
+{% if lineup %}
+<section class="card">
+  <div class="row-between"><h2>Lineup this week</h2>{% set hidden_set = hidden %}{% include "_days.html" %}</div>
+  <table class="plain">
+    {% for n in lineup %}<tr><td><a href="/tonight?night={{ n.night }}">{{ n.night | nice_date }}</a></td><td>{{ n.venue }}</td><td class="muted">{{ n.host or 'no host' }}</td><td class="num">{{ n.girls_confirmed }}</td></tr>{% endfor %}
+  </table>
+  <p class="small"><a href="/nights/new">+ Add a night</a></p>
+</section>
+{% endif %}
+{% endblock %}

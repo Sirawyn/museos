@@ -1,0 +1,115 @@
+{% extends "base.html" %}{% block title %}{% if new %}New {{ e.singular }}{% else %}{{ r[e.pk] if e.pk != 'id' or e.id_prefix else (r.name or r.night or e.singular) }}{% endif %}{% endblock %}
+{% block content %}
+<div class="head">
+  <h1>{% if new %}New {{ e.singular }}{% else %}{{ r.name or r.title or (r.ig_handle and '@' ~ r.ig_handle) or (e.slug != 'plan' and r.post_id) or (r.date and (r.date | nice_date)) or r[e.pk] }}{% endif %}</h1>
+  <a class="btn ghost" href="/{{ e.slug }}">All {{ e.title | lower }}</a>
+</div>
+{% if saved %}<p class="ok">Saved.</p>{% endif %}
+{% if error %}<p class="alert">{{ error }}</p>{% endif %}
+
+{% if computed %}
+<div class="kpis small">
+  {% for label, val, k in computed %}<div class="kpi"><b>{{ (val | fmt(ctype(k))) or '–' }}</b><span>{{ label }}</span></div>{% endfor %}
+</div>
+{% endif %}
+
+<form method="post" action="{{ '/' ~ e.slug ~ '/new' if new else '/' ~ e.slug ~ '/' ~ (r[e.pk] | string | urlencode) }}" class="card form">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  {% if not new and e.id_prefix %}<p class="muted small">{{ e.f(e.pk).label }}: {{ r[e.pk] }}</p>{% endif %}
+  <div class="fields">
+  {% for f in fields if not (f.name == e.pk and e.id_prefix) %}{% include "_field.html" %}{% endfor %}
+  </div>
+  {% if editable %}<div class="form-actions"><button class="btn primary">{{ 'Add' if new else 'Save' }}</button></div>{% endif %}
+</form>
+
+{% if not new %}
+  {% if e.slug == 'plan' %}
+  <section class="card">
+    <h2>Approval</h2>
+    {% if r.needs_approval in (1, '1') %}
+      {% if r.approved_at %}<p class="ok">Approved by {{ r.approved_by }} on {{ r.approved_at | nice_dt }}.</p>
+      {% elif r.status == 'Ready for review' %}<p class="muted">Waiting for the founder.</p>
+      {% else %}<p class="muted">This post needs the founder's OK before it can be scheduled or posted.</p>{% endif %}
+    {% else %}<p class="muted small">No approval needed. Tick "Needs founder approval" above for a new format, series or collab.</p>{% endif %}
+    {% if r.review_note %}<p><b>Founder's note:</b> {{ r.review_note }}</p>{% endif %}
+    <form method="post" action="/plan/{{ r.id | urlencode }}/review" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="/plan/{{ r.id | urlencode }}?saved=1">
+      {% if is_admin(user) %}
+        <input type="text" name="note" placeholder="Note for the team (optional)" aria-label="Note">
+        <button class="btn go small" name="action" value="approve">Approve</button>
+        <button class="btn small" name="action" value="sendback">Send back</button>
+      {% elif can_write(user, 'plan') and r.status not in ('Ready for review', 'Posted') and not r.approved_at %}
+        <button class="btn small" name="action" value="submit">Send to the founder for review</button>
+      {% endif %}
+    </form>
+    {% if r.post_id %}<p class="small">On the Content tab as <a href="/content/{{ r.post_id | urlencode }}">{{ r.post_id }}</a>{% if computed %} · views and DMs show at the top{% endif %}. Update views there on day 7.</p>{% endif %}
+    {% if r.idea_id %}<p class="small muted">From idea <a href="/ideas/{{ r.idea_id | urlencode }}">{{ r.idea_id }}</a>.</p>{% endif %}
+  </section>
+  {% endif %}
+  {% if e.slug == 'ideas' and can_write(user, 'plan') and r.status not in ('On the calendar',) %}
+  <section class="card">
+    <h2>Move to the calendar</h2>
+    {% if r.new_format in (1, '1') %}<p class="muted small">New format: the planned post will need the founder's approval before it goes up.</p>{% endif %}
+    <form method="post" action="/ideas/{{ r.id | urlencode }}/schedule" class="inline-form">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="date" name="date" required aria-label="Post date">
+      <select name="owner" aria-label="Owner"><option value="">Me</option>
+        {% for t in opts.team if t.role in ('Social Media', 'Administrator') and t.status != 'Inactive' %}<option>{{ t.name }}</option>{% endfor %}</select>
+      <button class="btn primary small">Plan it</button>
+    </form>
+  </section>
+  {% endif %}
+  {% if e.slug == 'ideas' and r.plan_id %}<p class="small">On the calendar as <a href="/plan/{{ r.plan_id | urlencode }}">{{ r.plan_id }}</a>.</p>{% endif %}
+  {% if e.slug == 'campaigns' %}
+  <section class="card">
+    <div class="row-between"><h2>Posts</h2>{% if can_write(user, 'plan') %}<a class="btn small" href="/plan/new?campaign={{ r.name | urlencode }}">+ Plan a post</a>{% endif %}</div>
+    <table class="plain resp">
+      <thead><tr><th>Date</th><th>Post</th><th>Format</th><th>Owner</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for p in related.posts %}
+      <tr><td data-label="Date">{{ p.planned_date | nice_date }}</td><td data-label="Post"><a href="/plan/{{ p.id | urlencode }}">{{ p.title }}</a></td>
+        <td data-label="Format">{{ p.format or '' }}</td><td data-label="Owner">{{ p.owner or '' }}</td>
+        <td data-label="Status"><span class="pill s-{{ (p.status or '') | lower | replace(' ', '-') }}">{{ p.status }}</span></td></tr>
+      {% else %}<tr><td colspan="5" class="muted">No posts planned for this campaign yet.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+    {% if related.ideas %}<h3>Ideas for this campaign</h3>
+    <ul>{% for i in related.ideas %}<li><a href="/ideas/{{ i.id | urlencode }}">{{ i.title }}</a></li>{% endfor %}</ul>{% endif %}
+  </section>
+  {% endif %}
+  {% if e.slug == 'leads' and can_write(user, 'bookings') %}
+  <p><a class="btn" href="/bookings/new?lead={{ r.id | urlencode }}">+ Book this lead</a></p>
+  {% endif %}
+  {% if e.slug == 'guests' and can_write(user, 'bookings') %}
+  <p><a class="btn" href="/bookings/new?ig_handle={{ r.ig_handle | urlencode }}">+ New booking for @{{ r.ig_handle }}</a></p>
+  {% endif %}
+  {% if related.bookings is defined %}
+  <section class="card">
+    <h2>Bookings</h2>
+    <table class="plain resp">
+      <thead><tr><th>Night</th><th>Venue</th><th>Stop</th><th>Status</th><th class="num">Girls</th></tr></thead>
+      <tbody>
+      {% for b in related.bookings %}
+      <tr><td data-label="Night"><a href="/bookings/{{ b.id | urlencode }}">{{ b.night | nice_date }}</a></td><td data-label="Venue">{{ b.venue }}</td>
+        <td data-label="Stop">{{ b.stop or 1 }}</td>
+        <td data-label="Status"><span class="pill s-{{ (b.status or '') | lower | replace(' ', '-') }}">{{ b.status }}</span></td>
+        <td data-label="Girls" class="num">{{ b.girls_arrived if b.status == 'Arrived' and b.girls_arrived is not none else (b.girls or '') }}</td></tr>
+      {% else %}<tr><td colspan="5" class="muted">No bookings.</td></tr>{% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+  {% if related.leads %}
+  <section class="card">
+    <h2>DMs</h2>
+    <table class="plain">{% for l in related.leads %}<tr><td><a href="/leads/{{ l.id | urlencode }}">{{ l.created_at | nice_dt }}</a></td><td>{{ l.venue or '' }}</td><td><span class="pill">{{ l.status }}</span></td></tr>{% endfor %}</table>
+  </section>
+  {% endif %}
+  {% if can_delete(user, e.slug) %}
+  <form method="post" action="/{{ e.slug }}/{{ r[e.pk] | string | urlencode }}/delete" class="danger-zone" data-confirm="Delete this {{ e.singular }}? This can't be undone.">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="btn ghost danger-text">Delete {{ e.singular }}</button>
+  </form>
+  {% endif %}
+{% endif %}
+{% endblock %}

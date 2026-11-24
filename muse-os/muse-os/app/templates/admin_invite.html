@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Login link{% endblock %}
+{% block content %}
+<h1>Admin</h1>{% include "_adminnav.html" %}
+<div class="card narrow invite-card">
+  <h2>{% if reset %}New login link for {{ username }}{% else %}{{ username }} is set up as {{ role }}{% endif %}</h2>
+  <p class="muted small">Text this to them privately (not in a group chat). The link works once and expires in 7 days.{% if reset %} Their old password and sessions no longer work.{% endif %}</p>
+  <label><span>Message to send</span>
+    <textarea id="invite-msg" rows="8" readonly>{{ msg }}</textarea></label>
+  <div class="actions">
+    <button type="button" class="btn primary" data-copy="#invite-msg">Copy message</button>
+    <a class="btn" href="sms:?&body={{ msg | urlencode }}">Open in Messages</a>
+  </div>
+  <p class="small muted">Just the link: <code>{{ link }}</code></p>
+  <a class="btn ghost" href="/admin/users">Done</a>
+</div>
+{% endblock %}

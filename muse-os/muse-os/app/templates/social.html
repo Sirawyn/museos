@@ -1,0 +1,178 @@
+{% extends "base.html" %}{% block title %}Social{% endblock %}
+{% macro postline(p, show_date=true) %}
+<a class="post-card" href="/plan/{{ p.id | urlencode }}">
+  <span class="post-top">
+    <span class="fmt f-{{ (p.format or '') | lower | replace(' ', '-') }}">{{ p.format }}</span>
+    {% if show_date %}<span class="muted small">{{ p.planned_date | nice_date }}{% if p.planned_time %} · {{ p.planned_time | nice_time }}{% endif %}</span>{% endif %}
+    {% if p.approval and p.approval != 'Approved' %}<span class="tag ok-{{ p.approval | lower }}">OK {{ p.approval | lower }}</span>{% endif %}
+  </span>
+  <span class="post-title">{{ p.title }}</span>
+  <span class="post-meta muted small">{{ p.owner or 'No owner yet' }}{% if p.campaign %} · {{ p.campaign }}{% endif %}{% if p.views %} · {{ p.views }} views{% endif %}</span>
+</a>
+{% endmacro %}
+{% block content %}
+<div class="head">
+  <h1>Social</h1>
+  <div class="actions">
+    <a class="btn primary" href="/plan/new">+ Plan a post</a>
+    <a class="btn" href="/ideas/new">+ Idea</a>
+    <a class="btn ghost" href="/calendar">Calendar</a>
+  </div>
+</div>
+{% if saved %}<p class="ok">Saved.</p>{% endif %}
+{% if err %}<p class="alert">{{ err }}</p>{% endif %}
+
+{# ---- goal ---- #}
+{% set f = h.fol %}
+<section class="card goal">
+  <div class="row-between">
+    <h2>{{ '{:,}'.format(f.goal) }} Instagram followers by {{ f.goal_date | nice_date }}</h2>
+    <span class="muted small">{{ f.days_left }} days left</span>
+  </div>
+  {% if f.now is defined %}
+  <progress class="bar" max="100" value="{{ f.pct }}">{{ f.pct }}%</progress>
+  <div class="kpis small">
+    <div class="kpi"><b>{{ '{:,}'.format(f.now) }}</b><span>Followers ({{ f.as_of | nice_date }})</span></div>
+    <div class="kpi"><b>{{ '{:,}'.format(f.to_go) }}</b><span>To go</span></div>
+    <div class="kpi"><b>{{ f.per_day_needed if f.per_day_needed is not none else '–' }}</b><span>Needed per day</span></div>
+    <div class="kpi {{ 'bad' if f.on_track is defined and not f.on_track else '' }}"><b>{% if f.pace is defined %}{{ '%+d' % f.pace }}/day{% else %}–{% endif %}</b><span>{% if f.projected is defined %}Pace: {{ '{:,}'.format(f.projected) }} by the 15th{% else %}Pace (log 2+ days){% endif %}</span></div>
+  </div>
+  {% else %}
+  <p class="muted">No follower count logged yet. Log today's number and the app tracks the pace from here.</p>
+  {% endif %}
+  {% if can_write(user, 'growth') %}
+  <form method="post" action="/growth/quick" class="inline-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input type="text" name="followers" inputmode="numeric" placeholder="Today's follower count" aria-label="Today's follower count" required>
+    <button class="btn">Log</button>
+    <a class="small" href="/growth">History</a>
+  </form>
+  {% endif %}
+</section>
+
+{# ---- approvals ---- #}
+{% if h.review or h.new_format_ideas %}
+<section class="card attention">
+  <h2>Waiting for the founder <span class="count">{{ h.review | length + h.new_format_ideas | length }}</span></h2>
+  {% for p in h.review %}
+  <div class="review-row">
+    {{ postline(p) }}
+    {% if is_admin(user) %}
+    <form method="post" action="/plan/{{ p.id | urlencode }}/review" class="review-actions">
+      <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="/social">
+      <input type="text" name="note" placeholder="Note (optional)" aria-label="Note">
+      <button class="btn go small" name="action" value="approve">Approve</button>
+      <button class="btn small" name="action" value="sendback">Send back</button>
+    </form>
+    {% else %}<span class="muted small">With the founder</span>{% endif %}
+  </div>
+  {% endfor %}
+  {% for i in h.new_format_ideas %}
+  <div class="review-row">
+    <a class="post-card" href="/ideas/{{ i.id | urlencode }}"><span class="post-top"><span class="fmt">{{ i.format or 'Idea' }}</span><span class="tag">New format idea</span></span>
+      <span class="post-title">{{ i.title }}</span><span class="post-meta muted small">{{ i.added_by or '' }}</span></a>
+    <span class="muted small">{% if is_admin(user) %}Open it to OK or park it{% else %}Founder decides{% endif %}</span>
+  </div>
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if h.overdue %}
+<section class="card">
+  <h2>Behind schedule <span class="count">{{ h.overdue | length }}</span></h2>
+  <p class="muted small">Past their post date and not posted. Post them, move the date, or mark them Skipped.</p>
+  <div class="post-list">{% for p in h.overdue %}{{ postline(p) }}{% endfor %}</div>
+</section>
+{% endif %}
+
+{# ---- this week ---- #}
+<div class="head">
+  <h2 class="h-sec">This week</h2>
+  {% include "_weeknav.html" %}
+</div>
+<div class="board">
+  {% for label, items in h.board %}
+  <section class="col">
+    <h3>{{ label }} <span class="count">{{ items | length }}</span></h3>
+    {% for p in items %}
+      <div class="col-item">
+      {{ postline(p) }}
+      {% if can_write(user, 'plan') %}
+      <form method="post" action="/plan/{{ p.id | urlencode }}/review" class="inline-form move">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="action" value="status">
+        <input type="hidden" name="back" value="/social?week={{ h.start }}">
+        <select name="status" aria-label="Move to" data-autosubmit>
+          {% for s in statuses %}{% if s != 'Approved' or is_admin(user) or p.status == 'Approved' %}<option {{ 'selected' if s == p.status }}>{{ s }}</option>{% endif %}{% endfor %}
+        </select>
+        <noscript><button class="btn small">Move</button></noscript>
+      </form>
+      {% endif %}
+      </div>
+    {% else %}<p class="muted small empty-col">Nothing</p>{% endfor %}
+  </section>
+  {% endfor %}
+</div>
+
+<div class="grid2">
+  <section class="card">
+    <h2>Weekly quota</h2>
+    {% if h.quotas %}
+    <table class="plain">
+      <tr><th>Who</th><th class="num">Reels</th><th class="num">Carousels</th></tr>
+      {% for q in h.quotas %}
+      <tr><td>{{ q.name }}</td>
+        <td class="num {{ 'warn-text' if q.reels < q.reels_q }}">{{ q.reels }} / {{ q.reels_posted }} <span class="muted small">of {{ q.reels_q }}</span></td>
+        <td class="num {{ 'warn-text' if q.carousels < q.car_q }}">{{ q.carousels }} / {{ q.carousels_posted }} <span class="muted small">of {{ q.car_q }}</span></td></tr>
+      {% endfor %}
+    </table>
+    <p class="muted small">Planned / posted this week, against the weekly target.</p>
+    {% else %}<p class="muted small">Add the social managers on the Team tab with the role Social Media to track their quota.</p>{% endif %}
+    {% if h.unassigned %}<p class="small warn-text">{{ h.unassigned | length }} post{{ 's' if h.unassigned | length != 1 }} this week {{ 'have' if h.unassigned | length != 1 else 'has' }} no owner yet.</p>{% endif %}
+  </section>
+  <section class="card">
+    <h2>Reels over {{ '{:,}'.format(h.bonus_thr) }} views this month</h2>
+    <table class="plain">
+      {% for b in h.bonus %}<tr><td>{{ b.name }}</td><td class="num">{{ b.counted }} of {{ h.bonus_cap }}{% if b.count > b.counted %} <span class="muted small">({{ b.count }} total)</span>{% endif %}</td></tr>
+      {% else %}<tr><td class="muted small">None yet. Views come from the Content tab, so update them on day 7.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
+
+<section class="card">
+  <div class="row-between"><h2>Campaigns</h2><a class="small" href="/campaigns">All campaigns</a></div>
+  {% for c in h.campaigns %}
+  <a class="camp" href="/campaigns/{{ c.id }}">
+    <span class="row-between"><b>{{ c.name }}</b><span class="pill s-{{ (c.status or '') | lower }}">{{ c.status }}</span></span>
+    <span class="muted small">{{ c.start_date | nice_date }} to {{ c.end_date | nice_date }}{% if c.live and c.days_left is not none %} · {{ c.days_left }} days left{% endif %}{% if c.keyword %} · keyword {{ c.keyword }}{% endif %}</span>
+    {% if c.posts %}<progress class="bar thin" max="{{ c.posts }}" value="{{ c.posted }}"></progress>
+    <span class="muted small">{{ c.posted }} of {{ c.posts }} posts up{% if c.views %} · {{ c.views }} views{% endif %}{% if c.dms %} · {{ c.dms }} DMs{% endif %}</span>{% endif %}
+  </a>
+  {% else %}<p class="muted small">No campaigns running.</p>{% endfor %}
+</section>
+
+<div class="grid2">
+  <section class="card">
+    <div class="row-between"><h2>Next shoot nights</h2><a class="small" href="/shoots/new">+ Add</a></div>
+    <table class="plain">
+      {% for s in h.shoots %}<tr><td><a href="/shoots/{{ s.id }}">{{ s.date | nice_date }}</a></td><td>{{ s.venue or '' }}</td><td>{{ s.who or 'Nobody yet' }}</td></tr>
+      {% else %}<tr><td class="muted small">No shoot nights planned. Each manager films one night out a week.</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="card">
+    <div class="row-between"><h2>Top ideas <span class="count">{{ h.idea_count }}</span></h2><a class="small" href="/ideas">Backlog</a></div>
+    <table class="plain">
+      {% for i in h.ideas %}<tr><td><a href="/ideas/{{ i.id | urlencode }}">{{ i.title }}</a></td><td class="muted small">{{ i.format or '' }}</td><td class="num"><span class="tag p-{{ (i.priority or '') | lower }}">{{ i.priority or '' }}</span></td></tr>
+      {% else %}<tr><td class="muted small">The backlog is empty.</td></tr>{% endfor %}
+    </table>
+  </section>
+</div>
+
+<section class="card">
+  <h2>More</h2>
+  <div class="linkrow">
+    <a class="btn" href="/content">Content and format scoreboard</a>
+    <a class="btn" href="/plan">Full content plan</a>
+    {% if h.tracker %}<a class="btn" href="{{ h.tracker }}" target="_blank" rel="noopener noreferrer">UGC creator tracker ↗</a>{% endif %}
+  </div>
+</section>
+{% endblock %}

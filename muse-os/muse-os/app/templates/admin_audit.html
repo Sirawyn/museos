@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Change log{% endblock %}
+{% block content %}
+<h1>Admin</h1>{% include "_adminnav.html" %}
+<div class="table-wrap">
+<table class="data resp">
+  <thead><tr><th>When (UTC)</th><th>Who</th><th>What</th><th>Details</th></tr></thead>
+  <tbody>
+  {% for a in rows %}
+  <tr><td data-label="When">{{ a.at }}</td><td data-label="Who">{{ a.actor }}</td><td data-label="What">{{ a.action }} {{ a.entity }} {{ a.entity_id }}</td>
+    <td data-label="Details" class="small mono clip">{{ a.changes }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<div class="pager">{% if page > 1 %}<a class="btn" href="?page={{ page - 1 }}">‹ Newer</a>{% endif %}{% if rows | length == 200 %}<a class="btn" href="?page={{ page + 1 }}">Older ›</a>{% endif %}</div>
+{% endblock %}

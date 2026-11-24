@@ -1,0 +1,11 @@
+<details class="viewmenu">
+  <summary class="btn small">Days{% if hidden_set %} <span class="count">{{ 7 - hidden_set | length }}/7</span>{% endif %}</summary>
+  <form method="post" action="/prefs/days" class="viewmenu-pop">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="back" value="{{ request.url.path }}?{{ request.url.query }}">
+    <div class="small muted">Show these days (saved for you)</div>
+    <div class="daychips">
+    {% for d in WEEKDAY_NAMES %}<label class="daychip"><input type="checkbox" name="day" value="{{ loop.index0 }}" {{ '' if loop.index0 in hidden_set else 'checked' }}><span>{{ d }}</span></label>{% endfor %}
+    </div>
+    <button class="btn small primary">Save</button>
+  </form>
+</details>

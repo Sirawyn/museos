@@ -1,0 +1,6 @@
+<div class="weeknav">
+  <a class="btn small" href="?week={{ nav.prev }}" aria-label="Previous week">‹</a>
+  <span>Week of {{ (dash.week if dash is defined else week) | nice_date }}</span>
+  <a class="btn small" href="?week={{ nav.next }}" aria-label="Next week">›</a>
+  <a class="btn small ghost" href="?week={{ nav.this }}">This week</a>
+</div>

@@ -1,0 +1,12 @@
+{% extends "base.html" %}{% block title %}Log in{% endblock %}{% block mainclass %}center{% endblock %}
+{% block content %}
+<form method="post" action="/login" class="card narrow login">
+  <div class="ws"><span class="logo">M</span><span>Muse OS</span></div>
+  {% if error %}<p class="alert">{{ error }}</p>{% endif %}
+  <input type="hidden" name="next" value="{{ next or '/' }}">
+  <label>Username<input name="username" autocomplete="username" autocapitalize="none" autocorrect="off" required autofocus></label>
+  <label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+  <button class="btn primary full">Log in</button>
+  <p class="muted small">Forgot your password? Ask an admin to reset it.</p>
+</form>
+{% endblock %}

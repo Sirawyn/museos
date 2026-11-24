@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<meta name="robots" content="noindex, nofollow">
+<title>{% block title %}Muse OS{% endblock %} · Muse OS</title>
+<link rel="stylesheet" href="/static/style.css?v=14">
+<link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="/static/manifest.json">
+<script src="/static/app.js?v=14" defer></script>
+</head>
+<body>
+{% if user %}
+{% set home_label = 'Dashboard' if is_admin(user) else 'Home' %}
+{% set groups = [
+  (None, [("dashboard", home_label, "home"), ("tonight", "Tonight", "moon")]),
+  ("Social", [("social", "Social hub", "star"), ("calendar", "Calendar", "cal"), ("ideas", "Ideas", "bulb"), ("campaigns", "Campaigns", "flag"), ("content", "Content", "chart")]),
+  ("Records", [("leads", "Leads", "chat"), ("guests", "Guests", "users"), ("bookings", "Bookings", "list")]),
+  ("Operations", [("nights", "Nights", "cal"), ("venues", "Venues", "pin"), ("team", "Team", "team"), ("ledger", "Ledger", "cash")]),
+] %}
+<div class="app">
+<aside class="side">
+  <a class="ws" href="/"><span class="logo">M</span><span>Muse Hospitality<small>Muse OS</small></span></a>
+  {% for sec, items in groups %}
+    {% if sec %}{% set ns = namespace(any=false) %}{% for slug, l, i in items %}{% if can_view(user, slug) %}{% set ns.any = true %}{% endif %}{% endfor %}
+      {% if ns.any %}<div class="sec">{{ sec }}</div>{% endif %}{% endif %}
+    <nav class="tabs">
+    {% for slug, label, icon in items %}{% if can_view(user, slug) %}
+      <a href="/{{ slug }}" class="{{ 'on' if path.startswith('/' ~ slug) or (slug == 'dashboard' and path == '/') else '' }}"><span class="i i-{{ icon }}"></span>{{ label }}</a>
+    {% endif %}{% endfor %}
+    </nav>
+  {% endfor %}
+  {% if is_admin(user) %}
+  <div class="sec">Admin</div>
+  <nav class="tabs">
+    <a href="/setup" class="{{ 'on' if path.startswith('/setup') else '' }}"><span class="i i-cal"></span>Weekly setup</a>
+    <a href="/instagrams" class="{{ 'on' if path.startswith('/instagrams') else '' }}"><span class="i i-users"></span>Card Instagrams</a>
+    <a href="/admin/users" class="{{ 'on' if path.startswith('/admin') else '' }}"><span class="i i-gear"></span>Settings</a>
+  </nav>
+  {% endif %}
+  <details class="me">
+    <summary><span class="av {{ user.username | av }}">{{ user.username | initial }}</span><span class="me-name">{{ user.username }}<small>{{ ROLES[user.role] }}{% if user.team_name %} · {{ user.team_name }}{% endif %}</small></span></summary>
+    <div class="menu">
+      <a href="/account">Change password</a>
+      <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="link">Log out</button></form>
+    </div>
+  </details>
+</aside>
+<div class="content">
+<header class="top">
+  <a class="ws" href="/"><span class="logo">M</span><span>Muse OS</span></a>
+  <a class="who" href="/more" aria-label="Account and more"><span class="av {{ user.username | av }}">{{ user.username | initial }}</span></a>
+</header>
+{% endif %}
+<main class="{% block mainclass %}{% endblock %}">
+{% block content %}{% endblock %}
+</main>
+{% if user %}
+</div>
+</div>
+<nav class="bottom">
+  {% if user.role == 'social' %}{% set items = [("social","Social","star"),("calendar","Calendar","cal"),("ideas","Ideas","bulb"),("content","Content","chart")] %}
+  {% else %}{% set items = [("dashboard","Home","home"),("tonight","Tonight","moon"),("bookings","Bookings","list"),("leads","Leads","chat"),("social","Social","star")] %}{% endif %}
+  {% for slug, label, icon in items %}{% if can_view(user, slug) %}
+  <a href="/{{ slug }}" class="{{ 'on' if path.startswith('/' ~ slug) or (slug=='dashboard' and path=='/') else '' }}"><span class="i i-{{ icon }}"></span>{{ label }}</a>
+  {% endif %}{% endfor %}
+  <a href="/more" class="{{ 'on' if path == '/more' else '' }}"><span class="i i-more"></span>More</a>
+</nav>
+{% endif %}
+</body>
+</html>
